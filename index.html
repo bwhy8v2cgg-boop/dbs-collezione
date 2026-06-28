@@ -851,6 +851,58 @@
     .table-scroll-wrap .cards-table { min-width: unset; width: 100%; }
   }
 
+
+  /* BUDGET PAGE */
+  .budget-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+  .budget-kpi-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .budget-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .budget-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .budget-table thead th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .budget-table thead th:hover { color: var(--text); }
+  .budget-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .budget-table tbody tr:hover { background: var(--surface2); }
+  .budget-table td { padding: 10px 12px; vertical-align: middle; }
+  .budget-amount-pos { color: var(--green); font-weight: 700; }
+  .budget-amount-neg { color: var(--red);   font-weight: 700; }
+  .budget-date { font-size: 12px; color: var(--text2); white-space: nowrap; }
+  .budget-desc { font-size: 13px; }
+  .budget-delete-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text3);
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: all 0.15s;
+    display: flex; align-items: center;
+  }
+  .budget-delete-btn:hover { border-color: var(--red); color: var(--red); }
+  @media (max-width: 768px) {
+    .budget-header { flex-direction: column; }
+    .budget-kpi-row { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    #budget-page { padding: 16px; }
+  }
+
 </style>
 </head>
 <body>
@@ -860,16 +912,19 @@
   <div class="nav-tabs" id="nav-tabs-desktop">
     <button class="nav-tab active" onclick="switchPage('collection',this)">Collezione</button>
     <button class="nav-tab" onclick="switchPage('stats',this)">Statistiche</button>
+    <button class="nav-tab" onclick="switchPage('budget',this)">Budget</button>
   </div>
   <select class="nav-select" id="nav-select-mobile" onchange="switchPageMobile(this.value)">
     <option value="collection">Collezione</option>
     <option value="stats">Statistiche</option>
+    <option value="budget">Budget</option>
   </select>
   <div class="header-stats">
     <span>Totale: <strong id="stat-total">0</strong></span>
     <span>✅ <strong id="stat-have" style="color:var(--green)">0</strong></span>
     <span>❌ <strong id="stat-missing" style="color:var(--text3)">0</strong></span>
     <span>Valore: <strong id="stat-value" style="color:var(--accent2)">€0</strong></span>
+    <span>Budget: <strong id="stat-budget" style="color:var(--green)">€0</strong></span>
   </div>
   <span class="header-value-mobile"><strong id="stat-value-mobile" style="color:var(--accent2)">€0</strong></span>
   <button class="btn btn-primary" onclick="openModal()">
@@ -1115,6 +1170,79 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Push
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- BUDGET PAGE -->
+<div class="stats-page" id="budget-page" style="display:none;">
+  <div class="budget-header">
+    <div class="budget-kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Saldo attuale</div>
+        <div class="kpi-value" id="budget-total" style="color:var(--green)">€0.00</div>
+        <div class="kpi-sub" id="budget-sub">0 movimenti</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Totale entrate</div>
+        <div class="kpi-value" id="budget-in" style="color:var(--green)">€0.00</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Totale uscite</div>
+        <div class="kpi-value" id="budget-out" style="color:var(--red)">€0.00</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="openBudgetModal()" style="margin-top:4px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Aggiungi movimento
+    </button>
+  </div>
+
+  <div class="budget-table-wrap">
+    <table class="budget-table" id="budget-table">
+      <thead>
+        <tr>
+          <th onclick="budgetSort('date')">Data <span class="th-arrow" id="bsort-date">↕</span></th>
+          <th onclick="budgetSort('desc')">Descrizione <span class="th-arrow" id="bsort-desc">↕</span></th>
+          <th onclick="budgetSort('amount')" style="text-align:right">€ <span class="th-arrow" id="bsort-amount">↕</span></th>
+          <th style="width:32px;"></th>
+        </tr>
+      </thead>
+      <tbody id="budget-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="budget-empty" style="display:none">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+      <p>Nessun movimento</p>
+      <small>Aggiungi entrate e uscite per tracciare il tuo budget</small>
+    </div>
+  </div>
+</div>
+
+<!-- BUDGET MODAL -->
+<div class="modal-bg" id="budget-modal-bg" onclick="closeBudgetModalOnBg(event)">
+  <div class="modal" style="max-width:420px">
+    <h2 id="budget-modal-title">Aggiungi movimento</h2>
+    <div class="form-field">
+      <label>Data *</label>
+      <input type="date" id="bf-date" style="width:100%">
+    </div>
+    <div class="form-field">
+      <label>Descrizione *</label>
+      <input type="text" id="bf-desc" placeholder="es. Vendita Son Goku FB01-001">
+    </div>
+    <div class="form-field">
+      <label>Importo (€) *</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="ctrl-pills" id="bf-type-pills">
+          <button class="ctrl-pill active" data-type="in" onclick="setBudgetType('in',this)" style="color:var(--green);border-color:var(--green)">+ Entrata</button>
+          <button class="ctrl-pill" data-type="out" onclick="setBudgetType('out',this)" style="color:var(--red);border-color:var(--red)">− Uscita</button>
+        </div>
+        <input type="number" id="bf-amount" placeholder="0.00" min="0" step="0.01" style="flex:1">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeBudgetModal()">Annulla</button>
+      <button class="btn btn-primary" onclick="saveBudgetEntry()">Salva</button>
     </div>
   </div>
 </div>
@@ -1724,6 +1852,152 @@ function forgetGistCredentials() {
   setGistStatus('Credenziali rimosse da questo browser.', 'info');
 }
 
+// --- BUDGET ---
+const BUDGET_KEY = 'dbsfw_budget';
+let budgetEntries = [];
+let budgetType = 'in'; // 'in' | 'out'
+let budgetSortCol = 'date';
+let budgetSortDir = -1; // newest first
+
+function loadBudget() {
+  try { budgetEntries = JSON.parse(localStorage.getItem(BUDGET_KEY) || '[]'); } catch { budgetEntries = []; }
+}
+function saveBudget() { localStorage.setItem(BUDGET_KEY, JSON.stringify(budgetEntries)); }
+
+function setBudgetType(type, btn) {
+  budgetType = type;
+  document.querySelectorAll('#bf-type-pills .ctrl-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function openBudgetModal(id) {
+  const entry = id ? budgetEntries.find(e => e.id === id) : null;
+  document.getElementById('budget-modal-title').textContent = entry ? 'Modifica movimento' : 'Aggiungi movimento';
+  // Default date = today
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('bf-date').value   = entry ? entry.date   : today;
+  document.getElementById('bf-desc').value   = entry ? entry.desc   : '';
+  document.getElementById('bf-amount').value = entry ? Math.abs(entry.amount) : '';
+  budgetType = entry ? (entry.amount >= 0 ? 'in' : 'out') : 'in';
+  document.querySelectorAll('#bf-type-pills .ctrl-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.type === budgetType);
+  });
+  document.getElementById('budget-modal-bg')._editId = id || null;
+  document.getElementById('budget-modal-bg').classList.add('open');
+  setTimeout(() => document.getElementById('bf-desc').focus(), 100);
+}
+function closeBudgetModal() { document.getElementById('budget-modal-bg').classList.remove('open'); }
+function closeBudgetModalOnBg(e) { if (e.target === document.getElementById('budget-modal-bg')) closeBudgetModal(); }
+
+function saveBudgetEntry() {
+  const date   = document.getElementById('bf-date').value;
+  const desc   = document.getElementById('bf-desc').value.trim();
+  const amount = parseFloat(document.getElementById('bf-amount').value);
+  if (!date)       { alert('Inserisci la data.');        return; }
+  if (!desc)       { alert('Inserisci una descrizione.'); return; }
+  if (!amount || amount <= 0) { alert('Inserisci un importo valido.'); return; }
+
+  const finalAmount = budgetType === 'in' ? amount : -amount;
+  const editId = document.getElementById('budget-modal-bg')._editId;
+
+  if (editId) {
+    const idx = budgetEntries.findIndex(e => e.id === editId);
+    budgetEntries[idx] = { ...budgetEntries[idx], date, desc, amount: finalAmount };
+  } else {
+    budgetEntries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,5), date, desc, amount: finalAmount });
+  }
+  saveBudget();
+  closeBudgetModal();
+  renderBudget();
+  updateBudgetStat();
+  toast(editId ? 'Movimento aggiornato' : 'Movimento aggiunto', 'success');
+}
+
+function deleteBudgetEntry(id) {
+  if (!confirm('Eliminare questo movimento?')) return;
+  budgetEntries = budgetEntries.filter(e => e.id !== id);
+  saveBudget();
+  renderBudget();
+  updateBudgetStat();
+  toast('Movimento eliminato');
+}
+
+function budgetSort(col) {
+  if (budgetSortCol === col) budgetSortDir *= -1;
+  else { budgetSortCol = col; budgetSortDir = col === 'date' ? -1 : 1; }
+  ['date','desc','amount'].forEach(k => {
+    const el = document.getElementById('bsort-'+k);
+    if (el) el.textContent = budgetSortCol === k ? (budgetSortDir === 1 ? '↑' : '↓') : '↕';
+  });
+  renderBudget();
+}
+
+function renderBudget() {
+  const tbody = document.getElementById('budget-tbody');
+  const empty = document.getElementById('budget-empty');
+  if (!tbody) return;
+
+  const sorted = [...budgetEntries].sort((a, b) => {
+    if (budgetSortCol === 'date')   return a.date.localeCompare(b.date) * budgetSortDir;
+    if (budgetSortCol === 'desc')   return a.desc.localeCompare(b.desc) * budgetSortDir;
+    if (budgetSortCol === 'amount') return (a.amount - b.amount) * budgetSortDir;
+    return 0;
+  });
+
+  if (!sorted.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = sorted.map(e => {
+    const pos = e.amount >= 0;
+    const amountStr = (pos ? '+' : '') + '€' + Math.abs(e.amount).toFixed(2);
+    const dateStr = e.date.split('-').reverse().join('/');
+    return `<tr>
+      <td class="budget-date">${dateStr}</td>
+      <td class="budget-desc">${esc(e.desc)}</td>
+      <td class="${pos ? 'budget-amount-pos' : 'budget-amount-neg'}" style="text-align:right;white-space:nowrap;">${amountStr}</td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          <button class="budget-delete-btn" onclick="openBudgetModal('${e.id}')" title="Modifica">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="budget-delete-btn" onclick="deleteBudgetEntry('${e.id}')" title="Elimina">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Update KPIs
+  const total  = budgetEntries.reduce((s, e) => s + e.amount, 0);
+  const income = budgetEntries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0);
+  const outgo  = budgetEntries.filter(e => e.amount < 0).reduce((s, e) => s + e.amount, 0);
+  const totalEl = document.getElementById('budget-total');
+  if (totalEl) {
+    totalEl.textContent = (total >= 0 ? '+' : '') + '€' + total.toFixed(2);
+    totalEl.style.color = total >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  const inEl = document.getElementById('budget-in');
+  if (inEl) inEl.textContent = '+€' + income.toFixed(2);
+  const outEl = document.getElementById('budget-out');
+  if (outEl) outEl.textContent = '-€' + Math.abs(outgo).toFixed(2);
+  const subEl = document.getElementById('budget-sub');
+  if (subEl) subEl.textContent = budgetEntries.length + ' moviment' + (budgetEntries.length === 1 ? 'o' : 'i');
+}
+
+function updateBudgetStat() {
+  const total = budgetEntries.reduce((s, e) => s + e.amount, 0);
+  const el = document.getElementById('stat-budget');
+  if (el) {
+    el.textContent = (total >= 0 ? '+' : '') + '€' + total.toFixed(2);
+    el.style.color = total >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+}
+
 // --- TOAST ---
 function toast(msg, type) {
   const el = document.getElementById('toast');
@@ -1767,11 +2041,15 @@ function switchPage(page, btn) {
   currentPage = page;
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  const isStats = page === 'stats';
+  const isStats  = page === 'stats';
+  const isBudget = page === 'budget';
+  const isCollection = page === 'collection';
   document.getElementById('stats-page').classList.toggle('visible', isStats);
-  document.querySelector('.toolbar').style.display = isStats ? 'none' : '';
-  document.querySelector('.main').style.display    = isStats ? 'none' : '';
-  if (isStats) renderStats();
+  document.getElementById('budget-page').style.display  = isBudget ? 'block' : 'none';
+  document.querySelector('.toolbar').style.display = isCollection ? '' : 'none';
+  document.querySelector('.main').style.display    = isCollection ? '' : 'none';
+  if (isStats)  renderStats();
+  if (isBudget) renderBudget();
 }
 
 // --- VIEW MODE ---
@@ -2164,9 +2442,11 @@ function drawPie(canvasId, legendId, dataObj, total, isValue) {
 
 // --- INIT ---
 loadCards();
+loadBudget();
 renderGrid();
 renderDetail();
 initGistBtnState();
+updateBudgetStat();
 
 // Auto-pull dal Gist se token e ID sono già salvati
 (async function autoSync() {
