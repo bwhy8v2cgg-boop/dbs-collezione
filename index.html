@@ -715,6 +715,52 @@
   #card-page-body .no-img-big { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text3); font-size: 13px; padding: 40px; }
   #card-page-body .no-img-big svg { opacity: 0.25; }
 
+
+  /* HEADER MENU DROPDOWN */
+  .header-menu-wrap { position: relative; }
+  .header-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius2);
+    min-width: 180px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 300;
+    overflow: hidden;
+    flex-direction: column;
+  }
+  .header-menu-dropdown.open { display: flex; }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+  }
+  .menu-item:hover { background: var(--surface3); }
+  .menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* Mobile value in header */
+  .header-value-mobile {
+    display: none;
+    font-size: 13px;
+    margin-left: auto;
+    margin-right: 4px;
+  }
+  @media (max-width: 768px) {
+    .header-value-mobile { display: block; }
+    .header-stats { display: none; }
+  }
+
 </style>
 </head>
 <body>
@@ -735,23 +781,34 @@
     <span>❌ <strong id="stat-missing" style="color:var(--text3)">0</strong></span>
     <span>Valore: <strong id="stat-value" style="color:var(--accent2)">€0</strong></span>
   </div>
+  <span class="header-value-mobile"><strong id="stat-value-mobile" style="color:var(--accent2)">€0</strong></span>
   <button class="btn btn-primary" onclick="openModal()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    <span class="btn-label-add">Aggiungi carta</span>
+    <span class="btn-label-add">Aggiungi</span>
   </button>
-  <button class="btn btn-sm" onclick="exportJSON()" title="Esporta">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    <span class="btn-label">Export</span>
-  </button>
-  <label class="btn btn-sm" title="Importa" style="cursor:pointer">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    <span class="btn-label">Import</span>
-    <input type="file" accept=".json" onchange="importJSON(event)" style="display:none">
-  </label>
-  <button class="btn btn-sm" onclick="openGistModal()" title="Gist Sync" id="gist-btn">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-    <span class="btn-label" id="gist-btn-label">Gist Sync</span>
-  </button>
+  <!-- Hamburger menu -->
+  <div class="header-menu-wrap" id="header-menu-wrap">
+    <button class="btn btn-sm" onclick="toggleHeaderMenu(event)" id="header-menu-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </button>
+    <div class="header-menu-dropdown" id="header-menu-dropdown">
+      <button class="menu-item" onclick="exportJSON(); closeHeaderMenu()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export JSON
+      </button>
+      <label class="menu-item" style="cursor:pointer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import JSON
+        <input type="file" accept=".json" onchange="importJSON(event); closeHeaderMenu()" style="display:none">
+      </label>
+      <div class="menu-divider"></div>
+      <button class="menu-item" id="gist-menu-item" onclick="openGistModal(); closeHeaderMenu()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        <span id="gist-btn-label">Gist Sync</span>
+      </button>
+    </div>
+  </div>
+  <input type="file" id="import-file-input" accept=".json" onchange="importJSON(event)" style="display:none">
 </header>
 
 <!-- CARD DETAIL PAGE -->
@@ -795,10 +852,7 @@
     <button class="sort-btn" data-sort="code" onclick="setSort('code',this)">Codice <span class="sort-arrow" id="sort-code-arrow">↑</span></button>
     <button class="sort-btn" data-sort="price" onclick="setSort('price',this)">Prezzo <span class="sort-arrow" id="sort-price-arrow">↓</span></button>
   </div>
-  <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
-    <label style="font-size:12px; color:var(--text2)">Cartella img:</label>
-    <input type="text" id="img-folder" placeholder="immagini/" value="immagini/" style="width:130px; font-size:12px; padding:6px 10px" oninput="saveImgFolder()">
-  </div>
+
 </div>
 
 <!-- MAIN -->
@@ -955,11 +1009,11 @@
       <button class="btn" onclick="closeGistModal()" style="margin-right:auto">Chiudi</button>
       <button class="btn" onclick="gistPull()" id="btn-pull" style="color:var(--blue2);border-color:var(--blue2)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Pull (scarica dal Gist)
+        Pull
       </button>
       <button class="btn btn-primary" onclick="gistPush()" id="btn-push">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Push (salva sul Gist)
+        Push
       </button>
     </div>
   </div>
@@ -1003,13 +1057,7 @@
       <label>Link mercato <span style="font-weight:400;color:var(--text3);font-size:11px">(URL per acquisto/vendita)</span></label>
       <input type="text" id="f-url" placeholder="https://www.cardmarket.com/…">
     </div>
-    <div class="form-field">
-      <label>Percorso immagine (automatico)</label>
-      <div class="path-hint" id="img-path-preview">
-        L'immagine verrà cercata in: <strong>immagini/[CODICE].jpg</strong><br>
-        <small style="color:var(--text3)">Supporta anche .png .webp .jpeg</small>
-      </div>
-    </div>
+
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Annulla</button>
       <button class="btn btn-primary" onclick="saveCard()">Salva</button>
@@ -1098,6 +1146,7 @@ function renderGrid() {
   document.getElementById('stat-have').textContent    = have;
   document.getElementById('stat-missing').textContent = missing;
   document.getElementById('stat-value').textContent   = '€'+value.toFixed(2);
+  const vm = document.getElementById('stat-value-mobile'); if(vm) vm.textContent = '€'+value.toFixed(2);
   document.getElementById('cnt-all').textContent      = total;
   document.getElementById('cnt-have').textContent     = have;
   document.getElementById('cnt-missing').textContent  = missing;
@@ -1137,11 +1186,13 @@ function renderGrid() {
       const rKey = RARITY_KEY[r] || 'none';
       const label = r || 'Rarità non specificata';
       const haveCount = grpCards.filter(c=>c.status==='have').length;
+      const haveValue = grpCards.filter(c=>c.status==='have'&&c.price).reduce((s,c)=>s+parseFloat(c.price||0),0);
+      const valueStr = haveValue > 0 ? ` · <span style="color:var(--accent2);font-weight:600">€${haveValue.toFixed(0)}</span>` : '';
 
       const header = showHeaders ? `
         <div class="rarity-header">
           <span class="rarity-label ${rKey}">${label}</span>
-          <span class="rarity-count">${haveCount}/${grpCards.length}</span>
+          <span class="rarity-count">${haveCount}/${grpCards.length}${valueStr}</span>
           <div class="rarity-divider"></div>
         </div>` : '';
 
@@ -1207,10 +1258,6 @@ function buildDetailHTML(card) {
       <div class="detail-row">
         <span class="detail-label">Prezzo acquisto</span>
         <span class="detail-value">${card.price ? '€'+parseFloat(card.price).toFixed(2) : '—'}</span>
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:14px;font-size:11px;color:var(--text3)">
-        Immagine cercata in:<br>
-        <span style="color:var(--accent);font-family:monospace">${getImgFolder()}${card.code.toUpperCase()}.jpg</span>
       </div>
       <div class="detail-actions">
         <button class="btn" style="flex:1" onclick="openModal('${card.id}')">
@@ -1320,12 +1367,7 @@ function openModal(id) {
   document.getElementById('modal-bg').classList.add('open');
   setTimeout(()=>document.getElementById('f-code').focus(), 100);
 }
-function updateImgPreview() {
-  const code   = document.getElementById('f-code').value.toUpperCase() || '[CODICE]';
-  const folder = getImgFolder();
-  document.getElementById('img-path-preview').innerHTML =
-    `L'immagine verrà cercata in: <strong>${folder}${code}.jpg</strong><br><small style="color:var(--text3)">Supporta anche .png .webp .jpeg</small>`;
-}
+function updateImgPreview() { /* removed */ }
 function closeModal() { document.getElementById('modal-bg').classList.remove('open'); editingId = null; }
 function closeModalOnBg(e) { if (e.target === document.getElementById('modal-bg')) closeModal(); }
 
@@ -1483,8 +1525,8 @@ async function gistPush() {
     document.getElementById('gist-id').value = newId;
     updateGistIdHint();
     setGistStatus(`✓ Salvato! ${cards.length} carte sul Gist (${newId.slice(0,8)}…)`, 'ok');
-    document.getElementById('gist-btn').classList.add('synced');
-    document.getElementById('gist-btn-label').textContent = '✓ Gist';
+    const gb2 = document.getElementById('gist-menu-item'); if(gb2) gb2.style.color='var(--green)';
+    document.getElementById('gist-btn-label').textContent = '✓ Gist Sync';
     toast('Collezione salvata sul Gist', 'success');
   } catch(err) {
     setGistStatus('Errore: ' + err.message, 'err');
@@ -1533,8 +1575,8 @@ async function gistPull() {
     renderGrid();
     renderDetail();
     setGistStatus(`✓ Scaricate ${cards.length} carte dal Gist.`, 'ok');
-    document.getElementById('gist-btn').classList.add('synced');
-    document.getElementById('gist-btn-label').textContent = '✓ Gist';
+    const gb2 = document.getElementById('gist-menu-item'); if(gb2) gb2.style.color='var(--green)';
+    document.getElementById('gist-btn-label').textContent = '✓ Gist Sync';
     toast('Collezione sincronizzata dal Gist', 'success');
   } catch(err) {
     setGistStatus('Errore: ' + err.message, 'err');
@@ -1547,8 +1589,8 @@ async function gistPull() {
 function initGistBtnState() {
   const id = localStorage.getItem(GIST_ID_KEY);
   if (id) {
-    document.getElementById('gist-btn').classList.add('synced');
-    document.getElementById('gist-btn-label').textContent = '✓ Gist';
+    const gb2 = document.getElementById('gist-menu-item'); if(gb2) gb2.style.color='var(--green)';
+    document.getElementById('gist-btn-label').textContent = '✓ Gist Sync';
   }
 }
 
@@ -1590,6 +1632,18 @@ function toast(msg, type) {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+function toggleHeaderMenu(e) {
+  e.stopPropagation();
+  document.getElementById('header-menu-dropdown').classList.toggle('open');
+}
+function closeHeaderMenu() {
+  document.getElementById('header-menu-dropdown').classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('header-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) closeHeaderMenu();
+});
 
 // --- PAGE SWITCH ---
 let currentPage = 'collection';
@@ -1680,6 +1734,7 @@ function renderStats() {
   document.getElementById('kpi-row').innerHTML = [
     { label:'Valore posseduto', value:'€'+totalVal.toFixed(2),    sub: owned.length+' carte', color:'' },
     { label:'Costo stimato mancanti', value:'€'+missingVal.toFixed(2), sub: missing.length+' carte', color:'color:var(--red)' },
+    { label:'Espansioni totali', value: [...new Set(cards.map(c=>c.set).filter(Boolean))].length, sub: '', color:'' },
     { label:'Carte totali',    value: totalCards,                  sub: '', color:'' },
     { label:'✅ Possedute',     value: owned.length,               sub: totalCards ? Math.round(owned.length/totalCards*100)+'%' : '', color:'color:var(--green)' },
     { label:'❌ Mancanti',      value: missing.length,             sub: totalCards ? Math.round(missing.length/totalCards*100)+'%' : '', color:'color:var(--text3)' },
