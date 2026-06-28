@@ -1263,11 +1263,8 @@ function renderGrid() {
   // TABLE MODE
   if (viewMode === 'table') {
     renderTable(filtered);
-    document.getElementById('detail-panel').style.display = 'none';
-    return;
+    return; // keep detail panel visible on desktop
   }
-  // Restore detail panel for grid mode
-  document.getElementById('detail-panel').style.display = '';
 
   if (sortBy !== 'rarity') {
     // Flat sorted grid
@@ -1386,7 +1383,11 @@ function selectCard(id) {
   document.querySelectorAll('.card-thumb').forEach(el => {
     if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(id)) el.classList.add('selected');
   });
-  openCardPage();
+  if (window.innerWidth <= 768) {
+    openCardPage();
+  } else {
+    renderDetail();
+  }
 }
 
 
@@ -1787,7 +1788,13 @@ function tableRowClick(id) {
   document.querySelectorAll('.cards-table tbody tr').forEach(r => {
     if (r.getAttribute('onclick') && r.getAttribute('onclick').includes(id)) r.classList.add('selected');
   });
-  openCardPage();
+  if (window.innerWidth <= 768) {
+    openCardPage();
+  } else {
+    // Show detail panel (restore it if hidden from previous table render)
+    document.getElementById('detail-panel').style.display = '';
+    renderDetail();
+  }
 }
 
 function tableSort(col) {
