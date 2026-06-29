@@ -903,6 +903,20 @@
     #budget-page { padding: 16px; }
   }
 
+
+  .budget-type-in  { color: var(--green) !important; border-color: var(--green) !important; }
+  .budget-type-out { color: var(--red)   !important; border-color: var(--red)   !important; }
+  .budget-type-in.active  { background: var(--green) !important; color: #002a16 !important; }
+  .budget-type-out.active { background: var(--red)   !important; color: #fff    !important; }
+
+
+  @media (max-width: 768px) {
+    .budget-kpi-row .kpi-card { padding: 10px 12px; }
+    .budget-kpi-row .kpi-value { font-size: 18px; }
+    .budget-kpi-row .kpi-label { font-size: 10px; }
+    .budget-kpi-row .kpi-sub   { font-size: 10px; }
+  }
+
 </style>
 </head>
 <body>
@@ -926,7 +940,7 @@
     <span>Valore: <strong id="stat-value" style="color:var(--accent2)">€0</strong></span>
     <span>Budget: <strong id="stat-budget" style="color:var(--green)">€0</strong></span>
   </div>
-  <span class="header-value-mobile"><strong id="stat-value-mobile" style="color:var(--accent2)">€0</strong></span>
+  <span class="header-value-mobile"><strong id="stat-value-mobile" style="color:var(--accent2)">€0</strong> <span style="color:var(--text3);font-size:11px;margin:0 2px">·</span> <span style="font-size:11px;color:var(--text2)">B:</span><strong id="stat-budget-mobile" style="color:var(--green)">€0</strong></span>
   <button class="btn btn-primary" onclick="openModal()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     <span class="btn-label-add">Aggiungi</span>
@@ -1234,8 +1248,8 @@
       <label>Importo (€) *</label>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="ctrl-pills" id="bf-type-pills">
-          <button class="ctrl-pill active" data-type="in" onclick="setBudgetType('in',this)" style="color:var(--green);border-color:var(--green)">+ Entrata</button>
-          <button class="ctrl-pill" data-type="out" onclick="setBudgetType('out',this)" style="color:var(--red);border-color:var(--red)">− Uscita</button>
+          <button class="ctrl-pill budget-type-in active" data-type="in" onclick="setBudgetType('in',this)">+ Entrata</button>
+          <button class="ctrl-pill budget-type-out" data-type="out" onclick="setBudgetType('out',this)">− Uscita</button>
         </div>
         <input type="number" id="bf-amount" placeholder="0.00" min="0" step="0.01" style="flex:1">
       </div>
@@ -1870,6 +1884,7 @@ function setBudgetType(type, btn) {
   btn.classList.add('active');
 }
 
+
 function openBudgetModal(id) {
   const entry = id ? budgetEntries.find(e => e.id === id) : null;
   document.getElementById('budget-modal-title').textContent = entry ? 'Modifica movimento' : 'Aggiungi movimento';
@@ -1991,11 +2006,13 @@ function renderBudget() {
 
 function updateBudgetStat() {
   const total = budgetEntries.reduce((s, e) => s + e.amount, 0);
+  const sign = total >= 0 ? '+' : '';
+  const color = total >= 0 ? 'var(--green)' : 'var(--red)';
+  const txt = sign + '€' + total.toFixed(2);
   const el = document.getElementById('stat-budget');
-  if (el) {
-    el.textContent = (total >= 0 ? '+' : '') + '€' + total.toFixed(2);
-    el.style.color = total >= 0 ? 'var(--green)' : 'var(--red)';
-  }
+  if (el) { el.textContent = txt; el.style.color = color; }
+  const elm = document.getElementById('stat-budget-mobile');
+  if (elm) { elm.textContent = txt; elm.style.color = color; }
 }
 
 // --- TOAST ---
@@ -2142,7 +2159,7 @@ function renderTable(filtered) {
     if (isMobile) {
       return `<tr class="${misCls}${selCls}" onclick="tableRowClick('${card.id}')">
         <td style="text-align:center;padding:5px 3px;font-size:14px;">${card.status === 'have' ? '✅' : '❌'}</td>
-        <td><div class="table-code" style="color:${codeColor}">${esc(card.code)}</div></td>
+        <td><span class="table-rarity-badge ${rKey}" style="font-size:10px;letter-spacing:0.3px">${esc(card.code)}</span></td>
         <td style="max-width:120px;overflow:hidden;"><div class="table-name" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(card.name||'—')}</div></td>
         <td class="table-price" style="text-align:right;white-space:nowrap;">${priceStr}</td>
       </tr>`;
