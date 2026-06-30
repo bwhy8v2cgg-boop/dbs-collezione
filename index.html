@@ -919,6 +919,57 @@
     .budget-kpi-row .kpi-sub   { font-size: 10px; }
   }
 
+
+  /* SYNC INDICATOR */
+  .sync-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sync-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .sync-indicator.saved   .sync-dot { background: var(--green); }
+  .sync-indicator.pending .sync-dot { background: var(--accent2); animation: pulse-dot 1s infinite; }
+  .sync-indicator.syncing .sync-dot { background: var(--blue2); animation: pulse-dot 0.6s infinite; }
+  .sync-indicator.error   .sync-dot { background: var(--red); }
+  .sync-indicator.off     { display: none; }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.8); }
+  }
+  @media (max-width: 768px) {
+    .sync-label { display: none; }
+    .sync-indicator { padding: 6px; }
+  }
+
+
+  /* COLLAPSIBLE GROUPS */
+  .rarity-header { cursor: pointer; user-select: none; }
+  .rarity-header:hover .rarity-label { filter: brightness(1.15); }
+  .rarity-collapse-icon {
+    font-size: 10px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+  .rarity-group.collapsed .cards-grid,
+  .rarity-group.collapsed .table-scroll-wrap { display: none; }
+  .rarity-group.collapsed .rarity-collapse-icon { transform: rotate(-90deg); }
+
 </style>
 </head>
 <body>
@@ -947,6 +998,10 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     <span class="btn-label-add">Aggiungi</span>
   </button>
+  <span class="sync-indicator" id="sync-indicator" title="Stato sincronizzazione Gist">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span class="sync-label" id="sync-label">Salvato</span>
+  </span>
   <!-- Hamburger menu -->
   <div class="header-menu-wrap" id="header-menu-wrap">
     <button class="btn btn-sm" onclick="toggleHeaderMenu(event)" id="header-menu-btn">
@@ -1335,7 +1390,7 @@ const RARITY_ORDER = { 'SCR★': 0, 'L★': 1, 'SR★': 2, '': 3 };
 function loadCards() {
   try { cards = JSON.parse(localStorage.getItem(DB_KEY) || '[]'); } catch { cards = []; }
 }
-function saveCards() { localStorage.setItem(DB_KEY, JSON.stringify(cards)); }
+function saveCards() { localStorage.setItem(DB_KEY, JSON.stringify(cards)); scheduleAutoPush(); }
 function saveImgFolder() { /* img-folder input removed */ }
 function getImgFolder() { return 'immagini/'; }
 
@@ -1436,11 +1491,13 @@ function renderGrid() {
         const haveCount = grpCards.filter(c=>c.status==='have').length;
         const haveValue = grpCards.filter(c=>c.status==='have'&&c.price).reduce((s,c)=>s+parseFloat(c.price||0),0);
         const valueStr = haveValue > 0 ? ` · <span style="color:var(--accent2);font-weight:600">€${haveValue.toFixed(0)}</span>` : '';
-        return `<div class="rarity-group">
-          <div class="rarity-header">
+        const isCollapsed = collapsedGroups.has('set:'+setKey);
+        return `<div class="rarity-group${isCollapsed ? ' collapsed' : ''}">
+          <div class="rarity-header" onclick="toggleGroupCollapse('set:${setKey.replace(/'/g,"\\'")}', event)">
             <span class="rarity-label none" style="font-size:12px;letter-spacing:1px">${esc(setKey)}</span>
             <span class="rarity-count">${haveCount}/${grpCards.length}${valueStr}</span>
             <div class="rarity-divider"></div>
+            <span class="rarity-collapse-icon">▼</span>
           </div>
           <div class="cards-grid">${sortCards(grpCards).map(c=>cardThumbHTML(c)).join('')}</div>
         </div>`;
@@ -1466,14 +1523,17 @@ function renderGrid() {
         const haveValue = grpCards.filter(c=>c.status==='have'&&c.price).reduce((s,c)=>s+parseFloat(c.price||0),0);
         const valueStr = haveValue > 0 ? ` · <span style="color:var(--accent2);font-weight:600">€${haveValue.toFixed(0)}</span>` : '';
 
+        const groupKey = 'rarity:'+r;
+        const isCollapsed = collapsedGroups.has(groupKey);
         const header = showHeaders ? `
-          <div class="rarity-header">
+          <div class="rarity-header" onclick="toggleGroupCollapse('${groupKey.replace(/'/g,"\\'")}', event)">
             <span class="rarity-label ${rKey}">${label}</span>
             <span class="rarity-count">${haveCount}/${grpCards.length}${valueStr}</span>
             <div class="rarity-divider"></div>
+            <span class="rarity-collapse-icon">▼</span>
           </div>` : '';
 
-        return `<div class="rarity-group">
+        return `<div class="rarity-group${showHeaders && isCollapsed ? ' collapsed' : ''}">
           ${header}
           <div class="cards-grid">${sortCards(grpCards).map(c=>cardThumbHTML(c)).join('')}</div>
         </div>`;
@@ -1723,6 +1783,65 @@ function importJSON(e) {
   e.target.value = '';
 }
 
+// --- AUTO-PUSH DEBOUNCED ---
+let autoPushTimer = null;
+const AUTO_PUSH_DELAY = 5000; // 5 secondi dopo l'ultima modifica
+let isPulling = false; // flag per evitare auto-push durante un pull
+
+function setSyncIndicator(state, label) {
+  const ind = document.getElementById('sync-indicator');
+  const lbl = document.getElementById('sync-label');
+  if (!ind) return;
+  const configured = localStorage.getItem(GIST_TOKEN_KEY) && localStorage.getItem(GIST_ID_KEY);
+  if (!configured) { ind.classList.add('off'); return; }
+  ind.classList.remove('off');
+  ind.className = 'sync-indicator ' + state;
+  if (lbl) lbl.textContent = label;
+}
+
+function scheduleAutoPush() {
+  if (isPulling) return; // non auto-pushare durante un pull in corso
+  const token = localStorage.getItem(GIST_TOKEN_KEY);
+  const id    = localStorage.getItem(GIST_ID_KEY);
+  if (!token || !id) return; // gist non configurato, nessun auto-push
+
+  setSyncIndicator('pending', 'Modifiche in sospeso…');
+  clearTimeout(autoPushTimer);
+  autoPushTimer = setTimeout(async () => {
+    setSyncIndicator('syncing', 'Sincronizzazione…');
+    await silentGistPush();
+  }, AUTO_PUSH_DELAY);
+}
+
+async function silentGistPush() {
+  const token = localStorage.getItem(GIST_TOKEN_KEY);
+  const id    = localStorage.getItem(GIST_ID_KEY);
+  if (!token || !id) return;
+
+  const BUDGET_FILENAME = 'dbsfw_budget.json';
+  const payload = {
+    description: 'Trackalo — Collezione',
+    public: false,
+    files: {
+      [GIST_FILENAME]:  { content: JSON.stringify(cards, null, 2) },
+      [BUDGET_FILENAME]: { content: JSON.stringify(budgetEntries, null, 2) }
+    }
+  };
+
+  try {
+    const res = await fetch(`https://api.github.com/gists/${id}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    setSyncIndicator('saved', 'Salvato');
+  } catch(err) {
+    setSyncIndicator('error', 'Errore sync');
+    console.warn('Auto-push fallito:', err.message);
+  }
+}
+
 // --- GIST SYNC ---
 const GIST_TOKEN_KEY = 'dbsfw_gist_token';
 const GIST_ID_KEY    = 'dbsfw_gist_id';
@@ -1820,6 +1939,8 @@ async function gistPush() {
     setGistStatus(`✓ Salvato! ${cards.length} carte sul Gist (${newId.slice(0,8)}…)`, 'ok');
     const gb2 = document.getElementById('gist-menu-item'); if(gb2) gb2.style.color='var(--green)';
     document.getElementById('gist-btn-label').textContent = '✓ Gist Sync';
+    clearTimeout(autoPushTimer);
+    setSyncIndicator('saved', 'Salvato');
     toast('Collezione salvata sul Gist', 'success');
   } catch(err) {
     setGistStatus('Errore: ' + err.message, 'err');
@@ -1870,16 +1991,20 @@ async function gistPull() {
       return;
     }
 
+    isPulling = true;
     cards = parsed;
     budgetEntries = pulledBudget;
     saveCards();
     saveBudget();
+    isPulling = false;
+    clearTimeout(autoPushTimer);
     selectedId = null;
     renderGrid();
     renderDetail();
     renderBudget();
     updateBudgetStat();
     setGistStatus(`✓ Scaricate ${cards.length} carte e ${budgetEntries.length} movimenti dal Gist.`, 'ok');
+    setSyncIndicator('saved', 'Salvato');
     const gb2 = document.getElementById('gist-menu-item'); if(gb2) gb2.style.color='var(--green)';
     document.getElementById('gist-btn-label').textContent = '✓ Gist Sync';
     toast('Collezione sincronizzata dal Gist', 'success');
@@ -1933,7 +2058,7 @@ let budgetSortDir = -1; // newest first
 function loadBudget() {
   try { budgetEntries = JSON.parse(localStorage.getItem(BUDGET_KEY) || '[]'); } catch { budgetEntries = []; }
 }
-function saveBudget() { localStorage.setItem(BUDGET_KEY, JSON.stringify(budgetEntries)); }
+function saveBudget() { localStorage.setItem(BUDGET_KEY, JSON.stringify(budgetEntries)); scheduleAutoPush(); }
 
 function setBudgetType(type, btn) {
   budgetType = type;
@@ -2258,14 +2383,17 @@ function renderTable(filtered) {
     const labelCls = groupBy === 'rarity' ? rKey : 'none';
     const label = key || 'Rarità non specificata';
 
+    const groupKey = (groupBy === 'set' ? 'set:' : 'rarity:') + key;
+    const isCollapsed = collapsedGroups.has(groupKey);
     const header = showHeaders ? `
-      <div class="rarity-header" style="margin-bottom:8px">
+      <div class="rarity-header" style="margin-bottom:8px" onclick="toggleGroupCollapse('${groupKey.replace(/'/g,"\\'")}', event)">
         <span class="rarity-label ${labelCls}">${esc(label)}</span>
         <span class="rarity-count">${haveCount}/${grpCards.length}${valueStr}</span>
         <div class="rarity-divider"></div>
+        <span class="rarity-collapse-icon">▼</span>
       </div>` : '';
 
-    return `<div class="rarity-group">
+    return `<div class="rarity-group${showHeaders && isCollapsed ? ' collapsed' : ''}">
       ${header}
       <div class="table-scroll-wrap">
       <table class="cards-table">
@@ -2277,6 +2405,16 @@ function renderTable(filtered) {
   }).join('');
 
   container.innerHTML = html || '<div class="empty-state"><p>Nessuna carta trovata</p></div>';
+}
+
+// --- COLLAPSIBLE GROUPS ---
+let collapsedGroups = new Set(); // keys of collapsed groups (persisted per session, not saved)
+
+function toggleGroupCollapse(key, event) {
+  if (event) event.stopPropagation();
+  if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+  else collapsedGroups.add(key);
+  renderGrid();
 }
 
 // --- SORT ---
@@ -2569,6 +2707,7 @@ loadBudget();
 renderGrid();
 renderDetail();
 initGistBtnState();
+setSyncIndicator('saved', 'Salvato');
 updateBudgetStat();
 
 // Auto-pull dal Gist se token e ID sono già salvati
@@ -2598,6 +2737,7 @@ updateBudgetStat();
     const parsed = JSON.parse(content);
     if (!Array.isArray(parsed)) throw new Error('Formato non valido');
 
+    isPulling = true;
     cards = parsed;
     saveCards();
     // Also try to pull budget
@@ -2612,9 +2752,12 @@ updateBudgetStat();
         updateBudgetStat();
       }
     } catch {}
+    isPulling = false;
+    clearTimeout(autoPushTimer);
     renderGrid();
     renderDetail();
     if (lbl) lbl.textContent = '✓ Gist Sync';
+    setSyncIndicator('saved', 'Salvato');
     toast('Collezione aggiornata dal Gist', 'success');
   } catch(err) {
     if (lbl) lbl.textContent = '✓ Gist Sync';
